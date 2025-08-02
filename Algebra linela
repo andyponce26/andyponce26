@@ -1,0 +1,122 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import ipywidgets as widgets
+from IPython.display import display, clear_output
+
+# Forma de la letra J
+j_shape = np.array([
+    [0.5, 0], [0.2, 0.2], [0, 0.5], [0, 1],
+    [0.3, 1.2], [0.7, 1.2], [1, 1], [1, 4],
+    [1.5, 4], [1.5, 0], [1.2, 0], [1.1, 0.1],
+    [1.0, 0], [0.5, 0]
+])
+
+depth = 0.5
+angle_x, angle_y, angle_z = 0, 0, 0
+
+# Matrices de rotación
+def rotation_matrix_x(angle):
+    rad = np.radians(angle)
+    return np.array([
+        [1, 0, 0],
+        [0, np.cos(rad), -np.sin(rad)],
+        [0, np.sin(rad),  np.cos(rad)]
+    ])
+
+def rotation_matrix_y(angle):
+    rad = np.radians(angle)
+    return np.array([
+        [np.cos(rad), 0, np.sin(rad)],
+        [0, 1, 0],
+        [-np.sin(rad), 0, np.cos(rad)]
+    ])
+
+def rotation_matrix_z(angle):
+    rad = np.radians(angle)
+    return np.array([
+        [np.cos(rad), -np.sin(rad), 0],
+        [np.sin(rad),  np.cos(rad), 0],
+        [0, 0, 1]
+    ])
+
+def apply_rotation(points, rx, ry, rz):
+    R = rotation_matrix_x(rx) @ rotation_matrix_y(ry) @ rotation_matrix_z(rz)
+    return points @ R.T
+
+def extrude_shape(shape, depth):
+    front = np.array([[x, y, 0] for x, y in shape])
+    back = np.array([[x, y, depth] for x, y in shape])
+    sides = []
+    for i in range(len(shape) - 1):
+        sides.append([front[i], front[i+1], back[i+1], back[i]])
+    return front, back, sides
+
+# Contenedor de salida
+out = widgets.Output()
+
+# Función para dibujar
+def draw_letter(rx, ry, rz):
+    with out:
+        clear_output(wait=True)
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection='3d')
+        front, back, sides = extrude_shape(j_shape, depth)
+        front_rot = apply_rotation(front, rx, ry, rz)
+        back_rot = apply_rotation(back, rx, ry, rz)
+        sides_rot = [apply_rotation(np.array(s), rx, ry, rz) for s in sides]
+
+        poly3d = [front_rot, back_rot] + sides_rot
+        colors = ['tomato', 'salmon'] + ['orangered'] * len(sides_rot)
+        ax.add_collection3d(Poly3DCollection(poly3d, facecolors=colors, edgecolors='k'))
+
+        ax.set_xlim(-2, 3)
+        ax.set_ylim(-2, 5)
+        ax.set_zlim(-1, 2)
+        ax.view_init(elev=30, azim=30)
+        ax.set_title(f"Letra J en 3D\nRotación: X={rx}° Y={ry}° Z={rz}°")
+        plt.show()
+
+# Cuadros para ingresar ángulos
+input_x = widgets.IntText(value=0, description='Ángulo X:', style={'description_width': 'initial'})
+input_y = widgets.IntText(value=0, description='Ángulo Y:', style={'description_width': 'initial'})
+input_z = widgets.IntText(value=0, description='Ángulo Z:', style={'description_width': 'initial'})
+
+# Funciones de rotación personalizadas
+def rotar_x(b):
+    global angle_x
+    angle_x = input_x.value
+    draw_letter(angle_x, angle_y, angle_z)
+
+def rotar_y(b):
+    global angle_y
+    angle_y = input_y.value
+    draw_letter(angle_x, angle_y, angle_z)
+
+def rotar_z(b):
+    global angle_z
+    angle_z = input_z.value
+    draw_letter(angle_x, angle_y, angle_z)
+
+def mostrar_figura(b):
+    draw_letter(angle_x, angle_y, angle_z)
+
+# Botones
+btn_x = widgets.Button(description="Rotar X", button_style='info')
+btn_y = widgets.Button(description="Rotar Y", button_style='info')
+btn_z = widgets.Button(description="Rotar Z", button_style='info')
+btn_init = widgets.Button(description="Mostrar Figura", button_style='success')
+
+btn_x.on_click(rotar_x)
+btn_y.on_click(rotar_y)
+btn_z.on_click(rotar_z)
+btn_init.on_click(mostrar_figura)
+
+# Interfaz completa
+display(widgets.VBox([
+    widgets.HBox([input_x, btn_x]),
+    widgets.HBox([input_y, btn_y]),
+    widgets.HBox([input_z, btn_z]),
+    btn_init,
+    out
+]))
